@@ -130,7 +130,7 @@ def resize_rect(src_dir, dst_dir, *cut_rect_sizes):
                     elif exif[orientation] == 8:
                         img = img.rotate(90, expand=True)
                 except:
-                    #print('\033[31mERROR\033[0m')
+                    # print('\033[31mERROR\033[0m')
                     pass
 
                 img1 = img.crop((x_min_cut, y_min_cut, x_max_cut, y_max_cut))
@@ -175,7 +175,7 @@ def resize_rect(src_dir, dst_dir, *cut_rect_sizes):
                     data['imageWidth'] = cut_rect_sizes[-1]
                     data['imageHeight'] = cut_rect_sizes[-1]
 
-                img_name = data['imagePath'].replace('.jpg', '')
+                img_name = data['imagePath'].replace('.jpg', '').replace('.JPG', '')
                 img_dst_path = dst_dir + '/' + img_name + '_' + str(suc_num) + '.jpg'
                 img1.save(img_dst_path)
 
@@ -198,12 +198,17 @@ def resize_rect(src_dir, dst_dir, *cut_rect_sizes):
 
 
 def main():
-    #src_dir = 'F:/Lym/qxbz0724'
-    #dst_dir = 'C:/Users/Administrator/Desktop/suc'
-    src_dir = 'C:/Users/Administrator/Desktop/error'
-    dst_dir = 'C:/Users/Administrator/Desktop/dst'
+    src_dir = glob.glob(r'F:\Lym\图片\*')
+    dst_dir = []
+    for d in src_dir:
+        path = r'C:\Users\Administrator\Desktop\2019.8.6' + '\\' + d.split('\\')[-1]
+        dst_dir.append(path)
+        os.mkdir(path)
+    # src_dir = 'C:/Users/Administrator/Desktop/error'
+    # dst_dir = 'C:/Users/Administrator/Desktop/dst'
     # error_dir = 'C:/Users/Administrator/Desktop/er'
-    resize_rect(src_dir, dst_dir, 300, 500, 800)
+    for src, dst in zip(src_dir, dst_dir):
+        resize_rect(src, dst, 300, 500, 800)
 
 
 if __name__ == '__main__':
