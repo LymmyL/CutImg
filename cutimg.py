@@ -11,12 +11,22 @@ def resize_rect(src_dir, dst_dir, *cut_rect_sizes):
         cut_rect_sizes.append(300)
     cut_rect_sizes.sort()
 
-    json_path_list = glob.glob(src_dir + '/*.json')
+    json_path_list = glob.iglob(src_dir + '/**/*.json',recursive=True)
+
     for path in json_path_list:
+        if path.split('.')[-1] == 'JSON':
+            os.rename(path, path.replace('JSON', 'json'))
+        JPG_path = path.replace('json', 'JPG')
+        if os.path.exists((JPG_path)):
+            os.replace(JPG_path, JPG_path.replace('JPG', 'jpg'))
+
+    json_path_list = glob.iglob(src_dir.strip() + r'\**\*.json', recursive=True)
+
+    count=0
+    for json_count, path in enumerate(json_path_list):
         if not os.path.exists(path.replace('json', 'jpg')):
             json_path_list.remove(path)
-
-    for json_count, path in enumerate(json_path_list):
+            continue
         print(f'第{json_count + 1}个json文件:{path}')
         with open(path) as f:
             data = json.load(f)
@@ -25,12 +35,13 @@ def resize_rect(src_dir, dst_dir, *cut_rect_sizes):
             org_img_width = data['imageWidth']
             org_img_size_min = min(org_img_height, org_img_width)
 
-            print(f'原图:{org_img_width}*{org_img_height}')
+            #print(f'原图:{org_img_width}*{org_img_height}')
 
             shapes = data['shapes']
             shape_num = len(shapes)
             suc_num = 0
             for shape_count, shape in enumerate(shapes):
+                count+=1
                 print(f'第{shape_count + 1}个矩形框')
                 point1_x, point1_y = (
                     round(shape['points'][0][0]), round(shape['points'][0][1]))
@@ -42,12 +53,12 @@ def resize_rect(src_dir, dst_dir, *cut_rect_sizes):
                 y_min, y_max = (point1_y, point2_y) if point1_y < point2_y else (
                     point2_y, point1_y)
 
-                print(f'初始左上点:（{x_min},{y_min}）,右下点:({x_max},{y_max})')
+                #print(f'初始左上点:（{x_min},{y_min}）,右下点:({x_max},{y_max})')
 
                 org_rect_width = x_max - x_min
                 org_rect_height = y_max - y_min
 
-                print(f'初始矩形框大小:{org_rect_width}*{org_rect_height}')
+                #print(f'初始矩形框大小:{org_rect_width}*{org_rect_height}')
 
                 org_rect_size = max(org_rect_width, org_rect_height)
 
@@ -68,7 +79,7 @@ def resize_rect(src_dir, dst_dir, *cut_rect_sizes):
                     cut_rect_size = org_rect_size + dis
                     is_super_size = True
 
-                print(f'裁剪尺寸{cut_rect_size}')
+                #print(f'裁剪尺寸{cut_rect_size}')
 
                 # 超出图像范围
                 # if cut_rect_size > org_img_size_min:
@@ -79,7 +90,7 @@ def resize_rect(src_dir, dst_dir, *cut_rect_sizes):
 
                 # else:
                 suc_num += 1
-                print(f'裁剪矩形框大小:{cut_rect_size}*{cut_rect_size}')
+                #print(f'裁剪矩形框大小:{cut_rect_size}*{cut_rect_size}')
 
                 # print(f'点一:({point1_x},{point1_y}),点二:({point2_x},{point2_y})')
 
@@ -89,7 +100,7 @@ def resize_rect(src_dir, dst_dir, *cut_rect_sizes):
                 point_center_x, point_center_y = (
                     round((x_min + x_max) / 2), round((y_min + y_max) / 2))
 
-                print(f'中心点:({point_center_x},{point_center_y})')
+                #print(f'中心点:({point_center_x},{point_center_y})')
 
                 half_size = round(cut_rect_size / 2)
 
@@ -114,8 +125,8 @@ def resize_rect(src_dir, dst_dir, *cut_rect_sizes):
                     y_min_cut -= y_max_cut - org_img_height
                     y_max_cut = org_img_height
 
-                print(
-                    f'裁剪左上点:({x_min_cut},{y_min_cut}),右下点:({x_max_cut},{y_max_cut})')
+                #print(
+                    #f'裁剪左上点:({x_min_cut},{y_min_cut}),右下点:({x_max_cut},{y_max_cut})')
 
                 img = Image.open(path.replace('json', 'jpg'))
 
@@ -175,14 +186,20 @@ def resize_rect(src_dir, dst_dir, *cut_rect_sizes):
                     data['imageWidth'] = cut_rect_sizes[-1]
                     data['imageHeight'] = cut_rect_sizes[-1]
 
-                img_name = data['imagePath'].replace('.jpg', '').replace('.JPG', '')
-                img_dst_path = dst_dir + '/' + img_name + '_' + str(suc_num) + '.jpg'
+                #img_name = data['imagePath'].replace('.jpg', '').replace('.JPG', '')
+                label=shape['label']
+                dst_child_dir=dst_dir+'\\'+label
+                if not os.path.exists(dst_child_dir):
+                    os.mkdir(dst_child_dir)
+                img_dst_path = dst_child_dir +  '\\' + '{:0>8}'.format(count) + '.jpg'
+                #json_dst_path = dst_dir + '\\' + '{:0>8}'.format(count) + '.json'
                 img1.save(img_dst_path)
 
                 with open(img_dst_path, 'rb') as f:
                     base64_data = base64.b64encode(
                         f.read()).decode('utf-8')
 
+                data['imagePath']=img_dst_path.split('\\')[-1]
                 data['imageData'] = base64_data
 
                 shape['points'] = [[x_min_in_cut_img, y_min_in_cut_img],
@@ -198,17 +215,21 @@ def resize_rect(src_dir, dst_dir, *cut_rect_sizes):
 
 
 def main():
-    src_dir = glob.glob(r'F:\Lym\图片\*')
-    dst_dir = []
-    for d in src_dir:
-        path = r'C:\Users\Administrator\Desktop\2019.8.6' + '\\' + d.split('\\')[-1]
-        dst_dir.append(path)
-        os.mkdir(path)
+    # src_dir = glob.glob(r'F:\Lym\图片\*')
+    # dst_dir = []
+    # for d in src_dir:
+    #     path = r'C:\Users\Administrator\Desktop\2019.8.6' + '\\' + d.split('\\')[-1]
+    #     dst_dir.append(path)
+    #     os.mkdir(path)
     # src_dir = 'C:/Users/Administrator/Desktop/error'
     # dst_dir = 'C:/Users/Administrator/Desktop/dst'
     # error_dir = 'C:/Users/Administrator/Desktop/er'
-    for src, dst in zip(src_dir, dst_dir):
-        resize_rect(src, dst, 300, 500, 800)
+    # for src, dst in zip(src_dir, dst_dir):
+    #     resize_rect(src, dst, 300, 500, 800)
+
+    src=r'F:\Lym\图片2'
+    dst=r'C:\Users\Administrator\Desktop\class'
+    resize_rect(src,dst,300,500,800)
 
 
 if __name__ == '__main__':
